@@ -15,7 +15,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
-import android.provider.OpenableColumns;
 import android.util.Base64;
 import android.webkit.MimeTypeMap;
 
@@ -191,7 +190,7 @@ public class Utils {
             String mimeType =  getMimeTypeFromFileUri(uri);
             Bitmap b = BitmapFactory.decodeStream(imageStream);
             b = Bitmap.createScaledBitmap(b, newDimens[0], newDimens[1], true);
-            String originalOrientation = getOrientation(uri, context);
+            int originalOrientation = getOrientation(uri, context);
 
             File file = createFile(context, getFileTypeFromMime(mimeType));
             OutputStream os = context.getContentResolver().openOutputStream(Uri.fromFile(file));
@@ -205,18 +204,35 @@ public class Utils {
         }
     }
 
-    static String getOrientation(Uri uri, Context context) throws IOException {
-        ExifInterface exifInterface = new ExifInterface(context.getContentResolver().openInputStream(uri));
-        return exifInterface.getAttribute(ExifInterface.TAG_ORIENTATION);
+    // see: https://stackoverflow.com/a/39466550
+    static int getOrientation(Uri uri, Context context) throws IOException {
+        String[] orientationColumn = {MediaStore.Images.ImageColumns.ORIENTATION};
+        Cursor cursor = context.getContentResolver().query(uri, orientationColumn, null, null, null);
+
+        if (cursor == null) {
+            return -1;
+        }
+
+        if (cursor.getCount() != 1) {
+            cursor.close();
+            return -1;
+        }
+
+        int orientation = -1;
+
+        if (cursor.moveToFirst()) {
+            orientation = cursor.getInt(cursor.getColumnIndex(orientationColumn[0]));
+        }
+
+        cursor.close();
+        cursor = null;
+
+        return orientation;
     }
 
-    // ExifInterface.saveAttributes is costly operation so don't set exif for unnecessary orientations
-    static void setOrientation(File file, String orientation, Context context) throws IOException {
-        if (orientation.equals(String.valueOf(ExifInterface.ORIENTATION_NORMAL)) || orientation.equals(String.valueOf(ExifInterface.ORIENTATION_UNDEFINED))) {
-            return;
-        }
+    static void setOrientation(File file, int orientation, Context context) throws IOException {
         ExifInterface exifInterface = new ExifInterface(file);
-        exifInterface.setAttribute(ExifInterface.TAG_ORIENTATION, orientation);
+        exifInterface.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(orientation));
         exifInterface.saveAttributes();
     }
 
