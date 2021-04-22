@@ -25,7 +25,7 @@
   "scripts": {
     "start": "react-native start",
     "example": "yarn --cwd example",
-    "prepare": "bob build",
+    "prep": "bob build",
     "ci:publish": "yarn semantic-release"
   },
   "keywords": [
